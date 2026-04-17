@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tokenomics, data centers, and the economics of future AI infrastructure — Sushrut Tendulkar</title>
+    <meta
+      name="description"
+      content="How tokens map to GPUs, power, and data center build-out — with public benchmarks, energy math, 2040 stress scenarios, and strategic implications for AI infrastructure."
+    />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+  </head>
+  <body data-site-root="..">
+    <div id="site-header"></div>
+
+    <main class="main">
+      <div class="content content--page">
+        <h1 class="section-title section-title--preserve">
+          Tokenomics, data centers, and the economics of future AI infrastructure
+        </h1>
+        <p class="tagline">
+          <em
+            >From token throughput to grid-scale power: how language-model unit economics and physical
+            infrastructure constrain strategy — not just model capability.</em
+          >
+        </p>
+        <p class="latest-post__meta" style="padding-top: 0; border-top: none">
+          <span class="latest-post__meta-author">Sushrut Tendulkar</span>
+          <span class="latest-post__meta-sep" aria-hidden="true">·</span>
+          <time class="latest-post__meta-date" datetime="2026-04-10">10 Apr 2026</time>
+          <span class="latest-post__meta-sep" aria-hidden="true">·</span>
+          <span class="latest-post__meta-read">Long read</span>
+        </p>
+
+        <hr class="divider" />
+
+        <p>
+          Every word you read from a large language model begins as a token. Tokens are not words — they are
+          sub-word fragments that models process one forward pass at a time, making them a direct proxy for
+          GPU compute, electricity, and ultimately, cost. As providers like OpenAI and Google now process
+          trillions of tokens per day, understanding the physics of tokens is no longer a concern limited to
+          AI engineers. It is a strategic imperative for every executive building on, or competing against,
+          AI-native companies.
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          The anatomy of a token
+        </h2>
+        <p>
+          To grasp the economics of AI at scale, one must start with the atom of the system: the token. A
+          token is the basic unit that large language models read and write. Contrary to popular assumption,
+          tokens are not equivalent to words. They represent sub-word pieces — fragments of words, individual
+          characters, punctuation, and spaces that a tokenizer carves language into before a model ever sees
+          it.
+        </p>
+        <p>
+          In English, a widely used rule of thumb is approximately one token per four characters, or about
+          0.75 words per token. A typical paragraph might contain 80 words but 105 to 110 tokens. This
+          distinction is not pedantic; it has direct financial implications, since cloud providers bill by
+          the token, not the word.
+        </p>
+        <p><strong>Tokens are the currency of AI. Understanding their physics is now a boardroom issue.</strong></p>
+        <p>
+          The reason tokens map so directly to cost is architectural. For an autoregressive model — the
+          architecture underpinning today’s dominant LLMs — each new output token requires a full forward pass
+          through the model: matrix multiplications across most model weights, attention computation, and
+          repeated data movement in and out of GPU memory. A useful engineering shorthand is that a
+          decoder-only transformer’s forward pass cost scales roughly linearly with the number of
+          non-embedding parameters, summarised as approximately 2N multiply-add operations per token, where N
+          is the parameter count. This is why a 70-billion-parameter dense model costs far more per token
+          than an 8-billion-parameter model, and why “tokens per second” functions as the standard proxy for
+          GPU expenditure.
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          Training tokens vs. inference tokens
+        </h2>
+        <p>
+          Not all tokens are created equal in cost structure. Training tokens — used while updating model
+          weights — require a forward pass, a backward pass, and optimizer steps, making them the most
+          compute-intensive. But training is a one-off or periodic expenditure. Inference tokens, consumed
+          every time a user interacts with a deployed model, involve only forward passes. The strategic
+          distinction is critical: training is a capital investment; inference is a running cost that scales
+          directly with user volume.
+        </p>
+        <p>Within inference itself, two phases govern cost and latency profiles:</p>
+        <ul class="misc-list">
+          <li>
+            <strong>Prefill:</strong> The input prompt is processed to build a key-value (KV) cache. This phase
+            is compute-heavy and relatively fast.
+          </li>
+          <li>
+            <strong>Decode:</strong> Output tokens are generated one by one using that cache. This phase is
+            memory-bandwidth-bound and highly sensitive to batching strategies and cache management.
+          </li>
+        </ul>
+        <p>
+          This prefill-decode split explains why modern serving systems employ techniques like continuous
+          batching, cache paging (most notably vLLM’s PagedAttention), and increasingly, dedicated “prefill”
+          and “decode” worker pools — each optimized for its distinct computational profile.
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          The scale of today’s token economy
+        </h2>
+        <p>
+          The token economy has reached a scale that strains conventional intuition. Consider the disclosed
+          figures from leading providers.
+        </p>
+        <p>
+          OpenAI has publicly stated its API platform processes approximately 6 billion tokens per minute —
+          equivalent to roughly 8.64 trillion tokens per day if that rate held constant. Google has disclosed
+          that its AI models process over 10 billion “direct API” tokens per minute, equating to approximately
+          14.4 trillion tokens per day for that segment alone, not accounting for internal workloads. On the
+          consumer side, ChatGPT was reported as receiving approximately 2.5 billion prompts per day — a
+          figure distinct from tokens, since each prompt generates input and output token streams that can
+          vary widely by task type and context length.
+        </p>
+        <p><strong>Data point</strong></p>
+        <blockquote style="margin: 1rem 0; padding-left: 1rem; border-left: 3px solid var(--rule-strong)">
+          No single audited public number exists for total global tokens per day across all providers.
+          Estimates blend public and private traffic and may double-count workloads routed through cloud
+          partners. Provider disclosures should be treated as directional, not as precise sector aggregates.
+        </blockquote>
+        <p>
+          Some third-party syntheses adopt a <strong>rounded global baseline</strong> for ecosystem-scale
+          planning — on the order of <strong>~50 trillion tokens per day</strong> (~1.5 quadrillion per month) in
+          discussions of agent-heavy traffic (
+          <a href="https://fireworks.ai/blog/state-of-agent-environments" rel="noopener noreferrer"
+            >Fireworks AI</a
+          >). That number is <em>not</em> the same object as any single provider’s API throughput (and may overlap
+          or double-count with them); it is mainly an <strong>alternate demand lens</strong> for back-of-envelope
+          capacity exercises, as developed further below.
+        </p>
+        <p>
+          API pricing reflects this scale. Providers including Anthropic, Cohere, Google (Gemini Developer
+          API), and OpenAI publish per-token rates that vary by model tier, input versus output, and whether
+          cached context is applied — with output pricing sometimes explicitly including “thinking tokens”
+          generated during extended reasoning. Subscription pricing provides a useful economic sanity check:
+          OpenAI’s ChatGPT tiers range from $8 per month (Go) to $20 (Plus) to $200 (Pro), establishing a
+          practical ceiling on what each subscriber can cost the platform unless strict usage limits or
+          advertising revenues offset heavy users.
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          Mapping tokens to GPUs and electricity
+        </h2>
+        <p>
+          Strategy requires converting token volumes into hardware realities. The following analysis provides
+          a rigorous, assumption-transparent framework for doing so.
+        </p>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          A throughput anchor: the 70B model on H100
+        </h3>
+        <p>
+          MLPerf Inference v5.1 benchmark results offer the most credible public throughput anchor. One
+          submission using NVIDIA H100 SXM systems — a 32-GPU configuration across four nodes — reported
+          approximately 124,879 tokens per second in the Offline scenario for Llama 2 70B. Divided across
+          32 GPUs, this yields approximately 3,900 tokens per second per H100 in an offline-batch setting. The
+          Server scenario for the same configuration showed around 122,274 tokens per second total, or
+          roughly 3,820 tokens per second per H100.
+        </p>
+        <p>
+          A critical interpretive note: these are fleet-throughput figures under benchmark conditions. In
+          production chat environments — where latency targets constrain how long a user waits for each output
+          token — operators typically limit batch sizes to meet response-time service levels, reducing per-GPU
+          throughput considerably in exchange for user experience quality. The benchmark numbers represent an
+          engineering ceiling, not a real-world operating point.
+        </p>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          Why batching changes everything
+        </h3>
+        <p>
+          Batching is perhaps the single most powerful lever available to operators seeking to drive down cost
+          per token. When multiple user requests are processed simultaneously, the model’s weights — the
+          dominant memory consumer — are loaded once and shared across all requests in the batch, amortizing
+          that fixed cost. The throughput gains are not incremental; they are multiplicative.
+        </p>
+        <p>
+          Static batching, however, is poorly suited to real-world traffic. Requests arrive at irregular
+          intervals, outputs vary widely in length, and waiting for the slowest sequence in a batch to finish
+          wastes GPU cycles. Continuous batching — where new requests slot in as others complete — keeps GPUs
+          saturated without sacrificing latency for faster requests. Alongside this, KV cache management has
+          emerged as a central operational challenge: each active sequence requires cache memory that grows
+          proportionally with its context length, and cache fragmentation at scale becomes a meaningful source
+          of waste. vLLM’s PagedAttention architecture addresses this directly and has become a reference
+          implementation in production serving.
+        </p>
+        <p>
+          Empirical systems work bears this out: a 2025 comparative study of vLLM and Hugging Face Text
+          Generation Inference reports materially higher GPU utilization for vLLM under high-concurrency
+          workloads (with trade-offs for tail latency in low-concurrency settings), underscoring that stack
+          choice and concurrency shape the utilization numbers that sit behind any tokens-per-GPU claim.
+          <a href="https://arxiv.org/abs/2511.17593" rel="noopener noreferrer"
+            >Kolluru (2025), vLLM vs. TGI performance study</a
+          >.
+        </p>
+
+        <p><strong>Key formula</strong></p>
+        <pre style="margin: 0.5rem 0 0; white-space: pre-wrap"><code>GPUs required ≈ (tokens per day) ÷ (tokens per second per GPU × 86,400 × utilization rate)</code></pre>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          Worked examples: translating disclosed token volumes into GPU estimates
+        </h3>
+        <p>
+          Assuming a planning figure of 3,900 tokens per second per H100 in an offline-like setting, one GPU
+          can handle approximately 337 million tokens per day (3,900 × 86,400). This is an upper-bound
+          planning figure; real systems operate below this level due to latency constraints, overhead, and
+          demand spikes requiring headroom.
+        </p>
+        <p>
+          Applying this to OpenAI’s disclosed API volume: 8.64 trillion tokens per day divided by 337
+          million tokens per GPU per day yields approximately 25,600 H100-equivalent GPUs at 100% utilization.
+          At a more realistic 50% utilization — accounting for traffic variability, latency headroom, and
+          maintenance — the implied fleet requirement doubles to approximately 51,000 H100-equivalent GPUs.
+          This is a unit conversion, not a fleet inventory claim. Its value is illustrative: it demonstrates
+          why hyperscale token delivery rapidly translates into “tens of thousands of top-tier GPUs.”
+        </p>
+        <p>
+          For Google’s disclosed direct-API volume of 14.4 trillion tokens per day: at 100% utilization,
+          approximately 42,700 H100-equivalent GPUs; at 50% utilization, approximately 85,000. The same caveats
+          apply.
+        </p>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          Cross-check: conservative throughput and a global baseline
+        </h3>
+        <p>
+          The ~3,900 tokens per second figure is an <strong>offline-style MLPerf ceiling</strong> for a 70B-class
+          model. A deliberately <strong>lower</strong> planning anchor appears in public inference-engine
+          material — for example, Together AI reports on the order of <strong>~117 tokens per second</strong> on
+          Llama-2-70B-Chat, sometimes rounded to <strong>~100 tokens per second per H100-class GPU</strong> in
+          normalized models (
+          <a href="https://www.together.ai/blog/together-inference-engine-v1" rel="noopener noreferrer"
+            >Together AI</a
+          >). At ~100 tokens per second sustained, one GPU delivers about <strong>8.64 million</strong> tokens per
+          day (100 × 86,400) — roughly <strong>39×</strong> below the 337 million tokens per day upper bound from
+          the MLPerf anchor. Fleet estimates move in direct proportion: the same token demand implies
+          <em>roughly 39×</em> more GPUs when you swap in this conservative anchor instead of the benchmark one.
+        </p>
+        <p>
+          Pairing the <strong>~50 trillion tokens per day</strong> ecosystem baseline (above) with
+          <strong>~100 tokens per second per GPU</strong> and 100% utilization yields on the order of
+          <strong>~5.8 million</strong> H100-equivalent GPUs — a different conversion than the OpenAI-only or
+          Google API slices, because <em>both</em> total demand and per-GPU throughput changed. The long-horizon
+          section below spells out power, racks, and 2040-style demand bands (including a ~25× “better hardware”
+          sanity pass) using the same spreadsheet-style logic.
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          The energy reality
+        </h2>
+        <p>
+          Token economics cannot be separated from energy economics. The physical layer of AI infrastructure is
+          increasingly a binding constraint on the industry’s growth trajectory.
+        </p>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          Power envelopes at the chip and rack level
+        </h3>
+        <p>
+          At the inference-optimized end of the market, NVIDIA’s L4 GPU carries a maximum TDP of 72 watts — a
+          figure relevant for “cheap token” scenarios where workloads migrate toward lower-power inference
+          cards or custom silicon. At the frontier end, NVIDIA’s DGX GB200 rack-scale system consumes
+          approximately 120 kilowatts per rack, with HPE’s NVL72 rack offering quoted at 132 kilowatts. Planning
+          notes sometimes cite <strong>~32 GPUs per rack</strong> (MLPerf-class cluster footprints) versus
+          <strong>~64 GPUs</strong> in dense liquid-cooled integration designs — both change per-rack load and
+          cabling step-functions. This stands in stark contrast to conventional data center norms: industry
+          surveys still find most facilities operating racks at 10 to 30 kilowatts, with very few exceeding that
+          range. The shift to AI-dense infrastructure is not merely a hardware upgrade — it is a facilities
+          redesign problem.
+        </p>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          Estimating energy per million tokens
+        </h3>
+        <p>Energy per token can be estimated with a transparent three-variable model:</p>
+        <pre style="margin: 0.5rem 0 0; white-space: pre-wrap"><code>Energy per token ≈ (IT power × PUE) ÷ throughput</code></pre>
+        <p style="margin-top: 1rem">
+          Applying this to the H100 benchmark anchor with defensible assumptions: 700 watts of average GPU
+          load under production conditions (consistent with public discussion of H100 power profiles); a Power
+          Usage Effectiveness (PUE) of 1.3 as a “good hyperscale” overhead approximation; and 3,900 tokens per
+          second throughput for a 70B model in an offline-style batch setting.
+        </p>
+        <p>
+          Public sources do not give a single fixed PUE for AI data centers. The International Energy Agency
+          notes that in modern data centers, servers often account for a large share of electricity demand,
+          with storage and networking comparatively small, while cooling can range from roughly 7% of demand at
+          efficient hyperscale sites to more than 30% at less efficient enterprise facilities — implying a wide
+          spread in overhead factors across sites. That variability is why PUE should be treated as an explicit
+          modeling choice, not a universal constant. See the IEA’s
+          <a href="https://www.iea.org/reports/energy-and-ai/energy-demand-from-ai" rel="noopener noreferrer"
+            ><em>Energy demand from AI</em></a
+          >
+          discussion for the underlying facility picture.
+        </p>
+        <p>
+          For <strong>PUE bracketing</strong> specifically: Google has reported fleet-wide figures near
+          <strong>1.09</strong>, while whole-industry averages are often discussed around <strong>1.5–1.6</strong>
+          (
+          <a href="https://datacenters.google/discover-more/faq" rel="noopener noreferrer"
+            >Google data center FAQ</a
+          >). The <strong>1.3</strong> value used in the worked example below sits between best-in-class hyperscale
+          and typical enterprise overhead — a modeling choice, not a universal constant. (The 2040 stress-check
+          tables later in this article use <strong>PUE 1.2</strong> for that model’s simplicity; results shift
+          modestly with PUE.)
+        </p>
+        <p>
+          Under these conditions, 1 million tokens requires approximately 256 seconds of GPU time. Energy
+          consumed: 0.7 kW × 1.3 × (256 ÷ 3,600) ≈ 0.065 kilowatt-hours per million tokens.
+        </p>
+        <p>
+          That figure is highly regime-dependent. If latency constraints reduce effective throughput to 1,600
+          tokens per second per GPU — a plausible production figure for low-latency chat — the same arithmetic
+          yields approximately 0.16 kilowatt-hours per million tokens. The ratio between these two scenarios is
+          2.5x, driven entirely by utilization assumptions. Any published “energy per token” figure that does
+          not disclose its serving regime, model size, and batch level is analytically incomplete.
+        </p>
+        <p><strong>External benchmark</strong></p>
+        <blockquote style="margin: 1rem 0; padding-left: 1rem; border-left: 3px solid var(--rule-strong)">
+          Epoch AI estimated a typical ChatGPT query using GPT-4o at roughly 0.3 watt-hours per query — a figure
+          they also positioned as lower than some older, widely repeated estimates — yet still far above what
+          peak-batch throughput mathematics alone would imply, because real serving carries overhead, latency
+          targets, and lower effective batch sizes.
+        </blockquote>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          Global energy context and the Jevons paradox
+        </h3>
+        <p>
+          The International Energy Agency estimates global electricity consumption from data centers at
+          approximately 415 terawatt-hours in 2024, representing about 1.5% of global electricity use. Its
+          base-case projection sees this roughly doubling to around 945 terawatt-hours by 2030 — with
+          substantial uncertainty in either direction.
+        </p>
+        <p>
+          The strategic implication is a variant of Jevons’ Paradox: even as tokens become individually
+          cheaper to produce, total token volume may grow faster than per-token efficiency gains, resulting in
+          higher absolute energy demand. Efficiency and growth are not substitutes for one another at this
+          scale. Boards overseeing energy-intensive operations — and policymakers setting grid investment
+          priorities — should treat this dynamic as structural, not cyclical.
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          Infrastructure at scale: supply, demand, and bottlenecks
+        </h2>
+        <p>
+          Synergy Research Group reported 1,189 large hyperscale data centers globally at the end of Q1 2025 —
+          the most useful proxy for sites likely to host significant AI workloads, though not every hyperscale
+          facility is GPU-dense. AI workloads are not neatly segregated; they run across hyperscale campuses,
+          large colocation sites, and select enterprise environments.
+        </p>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          Three forces driving token demand
+        </h3>
+        <p>Demand for tokens is being amplified along three distinct vectors simultaneously.</p>
+        <p>
+          <strong>First, user growth.</strong> OpenAI reported very large weekly active user counts through 2025,
+          accompanied by the 2.5-billion-prompts-per-day figure noted above. Each incremental user arriving on a
+          platform adds to the baseline token load.
+        </p>
+        <p>
+          <strong>Second, context expansion.</strong> Larger context windows — and the growing prevalence of
+          tool use, retrieval-augmented generation, and multi-modal inputs — mechanically increase the number
+          of tokens processed per task. An interaction that once consumed 500 tokens may now consume 8,000 as
+          systems are redesigned to leverage extended context (see e.g.
+          <a href="https://help.openai.com/en/articles/6825453-chatgpt-release-notes" rel="noopener noreferrer"
+            >ChatGPT release notes</a
+          >
+          for how providers document ongoing context and capability changes).
+        </p>
+        <p>
+          <strong>Third, agentic architectures.</strong> Agent-style systems — which decompose user objectives
+          into multi-step action plans, tool calls, and self-correction loops — can generate orders of
+          magnitude more internal tokens per visible user action than simple chat exchanges. As agent
+          deployments scale, their token footprint scales non-linearly with user count.
+        </p>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          Supply-side efficiency: real, but bounded
+        </h3>
+        <p>
+          On the supply side, meaningful cost reduction is occurring and can be expected to continue — within
+          limits. Epoch AI reports that prices for equivalent AI performance fell sharply between 2023 and
+          2025, with variation across task types. Hardware is advancing rapidly: NVIDIA positions its GB200
+          NVL72 rack as delivering substantially higher performance per watt than H100-class air-cooled
+          systems, with marketing claims on the order of <strong>25×</strong> lower cost and energy than Hopper
+          for some generative-AI workloads (
+          <a href="https://nvidianews.nvidia.com/news/nvidia-blackwell-platform-arrives-to-power-a-new-era-of-computing" rel="noopener noreferrer"
+            >NVIDIA</a
+          >), and separately <strong>~30×</strong> faster real-time LLM inference for GB200 NVL72 in some materials
+          (
+          <a href="https://www.nvidia.com/en-in/data-center/gb200-nvl72/" rel="noopener noreferrer"
+            >GB200 NVL72 product overview</a
+          >) — all vendor-framed, workload-dependent figures. Those same racks draw approximately 120 kilowatts,
+          redefining facility requirements.
+        </p>
+        <p>
+          Software-layer efficiency gains compound hardware improvements. Continuous batching and advanced
+          scheduling push utilization rates higher. PagedAttention-style cache management reduces memory waste.
+          Quantization — moving models from FP16 to FP8 or INT4 precision — can yield significant reductions
+          in GPU memory requirements and corresponding throughput improvements, with documented caveats around
+          accuracy degradation and kernel complexity at lower bit widths. Oracle Cloud has published
+          experiments describing large reductions in GPU requirements for certain serving configurations under
+          INT4-style quantization.
+        </p>
+        <p><strong>Scenario planning note</strong></p>
+        <blockquote style="margin: 1rem 0; padding-left: 1rem; border-left: 3px solid var(--rule-strong)">
+          Both “tokens per task” (driven by agentic behavior and context growth) and “tokens per second per
+          GPU” (driven by hardware and software) can grow rapidly and simultaneously. Because of this
+          compounding uncertainty, scenario planning consistently outperforms point forecasts in this domain.
+        </blockquote>
+
+        <h4 class="section-title section-title--preserve" style="font-size: 1rem; margin-top: 1.25rem; font-weight: 600">
+          Demand vs. supply (planning frame to 2035–2040)
+        </h4>
+        <p>
+          A transparent way to bracket long-run token economics is to write demand and supply in the same
+          units, then stress-test the drivers on both sides:
+        </p>
+        <pre style="margin: 0.5rem 0 0; white-space: pre-wrap"><code>Total tokens per year ≈ users × tasks per day × tokens per task × 365
+
+Total supply (tokens per year) ≈ GPU count × (tokens per second per GPU) × (seconds per year) × utilization</code></pre>
+        <p style="margin-top: 1rem">
+          The complication is that <em>tokens per task</em> can rise with context length and agentic behavior
+          at the same time as <em>tokens per second per GPU</em> rises with better silicon and serving software
+          — so both sides of the ledger can move quickly together. That is why the scenario-planning note
+          above matters more than any single point forecast.
+        </p>
+        <h4 class="section-title section-title--preserve" style="font-size: 1rem; margin-top: 1.5rem; font-weight: 600">
+          Long-horizon stress checks (2040 scenarios)
+        </h4>
+        <p>
+          The tables below follow one <strong>normalized spreadsheet model</strong> — not a forecast of actual
+          fleets or grid load.
+        </p>
+        <p><strong>Model inputs (held constant across scenarios except token demand):</strong></p>
+        <ul class="misc-list">
+          <li>
+            <strong>“Today public baseline” token demand:</strong> ~<strong>50 trillion tokens/day</strong>
+            (~1.5 quadrillion/month), from third-party ecosystem-scale discussion (
+            <a href="https://fireworks.ai/blog/state-of-agent-environments" rel="noopener noreferrer"
+              >Fireworks AI</a
+            >).
+          </li>
+          <li>
+            <strong>2040 token demand (monthly):</strong> low <strong>64.4</strong> quadrillion; medium
+            <strong>193.2</strong> quadrillion; heavy <strong>966</strong> quadrillion — these tiers come from
+            the same long-range assumption set used in the spreadsheet (not independently audited).
+          </li>
+          <li>
+            <strong>Throughput:</strong> <strong>100 tokens/s</strong> per H100-class GPU, rounded from Together’s
+            public <strong>~117 tokens/s</strong> on Llama-2-70B-Chat — a <em>deliberately conservative</em> chat-like
+            anchor, not the MLPerf offline ceiling (~3,900 t/s) used earlier in this article.
+          </li>
+          <li>
+            <strong>Power per GPU:</strong> <strong>700 W</strong> (H100-class TDP-style planning number,
+            <a href="https://www.nvidia.com/en-us/data-center/h100/" rel="noopener noreferrer">NVIDIA H100</a>).
+          </li>
+          <li>
+            <strong>PUE:</strong> <strong>1.2</strong> for this model (simplified). For contrast, Google has
+            reported fleet PUE near <strong>1.09</strong> and industry averages are often discussed around
+            <strong>1.5–1.6</strong> (
+            <a href="https://datacenters.google/discover-more/faq" rel="noopener noreferrer"
+              >Google data center FAQ</a
+            >).
+          </li>
+          <li>
+            <strong>Rack density (for rack/site counts only):</strong> <strong>32 GPUs/rack</strong> (H100-era
+            planning style) and <strong>64 GPUs/rack</strong> (dense liquid-cooled integration) — illustrative
+            divisors, not facility designs.
+          </li>
+        </ul>
+        <blockquote style="margin: 1rem 0; padding-left: 1rem; border-left: 3px solid var(--rule-strong)">
+          <strong>Caveats.</strong> All GPU, power, rack, and “100 MW site / 1 GW campus” figures are
+          <em>unit conversions</em> from the stated assumptions. They are not fleet inventories, not grid
+          commitments, and not comparable to provider-specific API token rates without reconciling double-counting.
+          Changing throughput from 100 t/s to the MLPerf-style ~3,900 t/s would shrink GPU counts by ~39×; mixing
+          demand bases without relabelling would be misleading.
+        </blockquote>
+
+        <p style="margin-top: 1.25rem"><strong>A. H100-equivalent capacity implied (unchanged H100-class economics)</strong></p>
+        <div style="overflow-x: auto; margin: 0.75rem 0; -webkit-overflow-scrolling: touch">
+          <table style="width: 100%; min-width: 52rem; border-collapse: collapse; font-size: 0.875rem">
+            <thead>
+              <tr>
+                <th style="text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Scenario
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Monthly tokens
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Avg H100-equiv. GPUs
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Approx facility power
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Approx yearly electricity
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  32-GPU racks
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  64-GPU racks
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  100 MW sites
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  1 GW campuses
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>Today public baseline</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  1.5 quadrillion
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>5.8 million</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>4.9 GW</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>42.6 TWh/yr</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>181k</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>90k</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>49</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>4.9</strong>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)"><strong>2040 low</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  64.4 quadrillion
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>248.5 million</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>208.7 GW</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>1,828 TWh/yr</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>7.76 million</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>3.88 million</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>2,087</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>208.7</strong>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>2040 medium</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  193.2 quadrillion
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>745.4 million</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>626.1 GW</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>5,484 TWh/yr</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>23.29 million</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>11.65 million</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>6,261</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>626.1</strong>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem"><strong>2040 heavy</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem">966 quadrillion</td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>3.73 billion</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>3.13 TW</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>27,420 TWh/yr</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>116.48 million</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>58.24 million</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>31,306</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>3,130.6</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size: 0.9375rem; color: var(--muted)">
+          <strong>How to read this:</strong> if 2040 token demand reached these tiers while per-token economics
+          stayed on H100-class, 100 t/s, 700 W, and PUE 1.2, the implied build-out is enormous — that is the
+          intended stress-test, not a deployment plan.
+        </p>
+
+        <p style="margin-top: 1.25rem"><strong>B. Plain English</strong></p>
+        <div style="overflow-x: auto; margin: 0.75rem 0">
+          <table style="width: 100%; min-width: 28rem; border-collapse: collapse; font-size: 0.875rem">
+            <thead>
+              <tr>
+                <th style="text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">Item</th>
+                <th style="text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">Today</th>
+                <th style="text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  2040 takeaway
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)"><strong>GPU need</strong></td>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Already in the <strong>millions</strong> at global scale
+                </td>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  2040 tiers imply <strong>hundreds of millions to billions</strong> of H100-equivalent GPUs
+                  under these frozen assumptions
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)"><strong>Power</strong></td>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Already <strong>multi-gigawatt</strong> scale in the model
+                </td>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  2040 only “works” in reality if compute gets <strong>much</strong> more efficient than this
+                  frozen stack
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem"><strong>Data centers</strong></td>
+                <td style="padding: 0.4rem 0.5rem">
+                  Order of <strong>a few 1 GW campuses</strong> globally is plausible as a <em>schematic</em>
+                </td>
+                <td style="padding: 0.4rem 0.5rem">
+                  Heavy 2040 on this model needs <strong>many</strong> more gigawatt-scale campuses if hardware
+                  stayed similar
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size: 0.9375rem">
+          For scale context, OpenAI has described Stargate-scale ambitions on the order of
+          <strong>~10 GW</strong> and multigigawatt U.S. expansion with Oracle (
+          <a href="https://openai.com/index/five-new-stargate-sites/" rel="noopener noreferrer">OpenAI</a>) —
+          compare to the <strong>208.7 GW</strong> to <strong>3.13 TW</strong> facility-power column in Table A for
+          2040 tiers; those are not the same thing (Table A is a toy consolidation of GPU draw × PUE, not a
+          an announced build pipeline).
+        </p>
+
+        <p style="margin-top: 1.25rem"><strong>C. Sanity check: divide by ~25× “better hardware”</strong></p>
+        <p style="font-size: 0.9375rem">
+          2040 is unlikely to be served on plain H100-like economics. NVIDIA has claimed large step-changes for
+          Blackwell / GB200 class systems (e.g. up to <strong>~25×</strong> lower cost and energy than Hopper on
+          stated GenAI workload framing, and <strong>~30×</strong> faster real-time LLM inference in some
+          materials — all <strong>vendor-framed</strong>). Table C applies a single <strong>25×</strong> divisor to
+          Table A’s 2040 rows only, as a <em>scalar thought experiment</em>: it does not mean every workload
+          improves by exactly 25× or that one can multiply vendor marketing numbers naively across a fleet.
+        </p>
+        <div style="overflow-x: auto; margin: 0.75rem 0">
+          <table style="width: 100%; min-width: 40rem; border-collapse: collapse; font-size: 0.875rem">
+            <thead>
+              <tr>
+                <th style="text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  2040 scenario
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  H100-equiv. GPUs ÷ 25
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Facility power ÷ 25
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Yearly electricity ÷ 25
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  64-GPU racks ÷ 25
+                </th>
+                <th style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  1 GW campuses ÷ 25
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)"><strong>Low</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>9.9 million</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>8.35 GW</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>73.1 TWh/yr</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>155k</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>8.3</strong>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)"><strong>Medium</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>29.8 million</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>25.0 GW</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>219.4 TWh/yr</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>466k</strong>
+                </td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>25.0</strong>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem"><strong>Heavy</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>149.1 million</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>125.2 GW</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>1,096.8 TWh/yr</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>2.33 million</strong></td>
+                <td style="text-align: right; padding: 0.4rem 0.5rem"><strong>125.2</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p style="margin-top: 1.25rem"><strong>D. Bottom line (same model)</strong></p>
+        <div style="overflow-x: auto; margin: 0.75rem 0">
+          <table style="width: 100%; min-width: 32rem; border-collapse: collapse; font-size: 0.875rem">
+            <thead>
+              <tr>
+                <th style="text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Question
+                </th>
+                <th style="text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Closest answer
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Can today’s frontier-model infrastructure serve these 2040 token assumptions <em>as-is</em> on
+                  H100-class economics?
+                </td>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)"><strong>No</strong></td>
+              </tr>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  Can it become possible with much better chips, batching, smaller models, caching, and custom
+                  silicon?
+                </td>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>Yes, in the low to maybe medium case</strong> (directionally — not a guarantee)
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  What breaks first if demand runs too fast?
+                </td>
+                <td style="padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule)">
+                  <strong>Power, land, cooling, grid access, GPU supply</strong>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.4rem 0.5rem">What does this tell us?</td>
+                <td style="padding: 0.4rem 0.5rem">
+                  <strong
+                    >Token demand can outrun infrastructure unless per-token efficiency improves hard and
+                    continuously</strong
+                  >
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size: 0.9375rem; color: var(--muted); margin-top: 1rem">
+          <strong>E. Main insight (from the same workbook):</strong> the 2040 <strong>low</strong> tier only
+          starts to look believable if better inference efficiency, more small/specialist models, heavy
+          caching and retrieval, custom silicon, and many more gigawatt-class campuses compound — not from
+          extrapolating today’s H100-style math alone.
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          Where the system breaks: physical constraints
+        </h2>
+        <p>
+          The binding constraints on AI infrastructure growth are increasingly physical rather than financial
+          or algorithmic. Capital is already chasing <strong>gigawatt-class</strong> commitments: OpenAI has
+          described Stargate-scale ambitions on the order of <strong>~10 GW</strong> and, with Oracle,
+          multigigawatt U.S. expansion (
+          <a href="https://openai.com/index/five-new-stargate-sites/" rel="noopener noreferrer"
+            >OpenAI / Stargate announcements</a
+          >) — a different league than traditional incremental campus builds. Reuters Breakingviews has
+          highlighted that even with declared AI capital expenditure commitments in the hundreds of billions of
+          dollars, grid connection delays, shortages of skilled construction labor, and limited availability of
+          specialized electrical equipment — transformers and turbines chief among them — create queues that
+          money alone cannot resolve. Bloomberg reporting has
+          documented parts shortages and construction delays in US data center builds, reinforcing that the
+          critical path runs through physical supply chains, not balance sheets.
+        </p>
+        <p>
+          Geopolitical factors add a further layer of constraint. Reuters reporting has documented export
+          control enforcement concerns, including restricted GPUs reaching sensitive buyers through circuitous
+          procurement paths. NVIDIA’s own financial disclosures note licensing requirements affecting exports
+          to China, outcomes that demonstrably affect business planning. The combination of physical scarcity
+          and geopolitical friction means that the AI infrastructure buildout faces headwinds that cannot be
+          engineered away.
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          The economics of serving one billion users
+        </h2>
+        <p>
+          As AI platforms approach consumer scale, the cost structure bifurcates cleanly into variable and
+          fixed components. Variable costs — dominated by GPU compute, power, and serving infrastructure
+          overhead — scale with token volume. Fixed and semi-fixed costs — model training, data acquisition,
+          safety research, and long-term data center construction — are amortized across the user base.
+        </p>
+        <p>
+          A useful managerial construct is “break-even tokens per subscription period.” If a plan is priced at
+          $20 per month and the provider’s true all-in cost is X dollars per million tokens, a subscriber
+          consumes approximately (20 ÷ X) million tokens before the economics invert. No provider has publicly
+          disclosed audited cost-per-million-token figures, but the bracket can be established: retail API
+          prices set an upper bound on what users pay; hardware and power mathematics reveal that at high
+          utilization, electricity is frequently not the dominant cost component for frontier GPU workloads —
+          it is the capital cost of the GPU itself, amortized across its service life.
+        </p>
+        <p>
+          This is precisely why “unlimited” plans universally come with fair-use provisions. Tokens carry a
+          physical cost at every utilization level. When effective utilization falls — as it does for
+          free-tier users arriving at irregular intervals — energy cost per token rises, even if the GPU is
+          already depreciated. The economics of consumer AI pricing are therefore not fundamentally different
+          from the economics of any other capacity-constrained service business.
+        </p>
+        <p>
+          <strong>“Unlimited” is a pricing fiction. Tokens have a physical cost at every utilization level.</strong>
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          Three scenarios for the next decade
+        </h2>
+        <p>
+          Given the range of uncertainty across demand growth, hardware improvement rates, energy
+          constraints, and geopolitical dynamics, scenario planning is more analytically honest than point
+          forecasts. Three scenarios bracket the plausible distribution.
+        </p>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          Best case: the token commodity era
+        </h3>
+        <p>
+          Chip and software performance continue to improve rapidly, and infrastructure buildouts keep pace with
+          demand through aggressive private investment and policy support for grid expansion. Token costs fall
+          faster than demand grows, pushing the economics of common AI tasks toward pennies per day per user.
+          Governments and educational institutions begin treating basic AI assistance as digital public
+          infrastructure — analogous to broadband access — and expand access accordingly. In this scenario,
+          AI’s economic value migrates upstream toward distribution, data, and product design rather than raw
+          compute.
+        </p>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          Worst case: infrastructure stagnation
+        </h3>
+        <p>
+          Power and grid constraints stall buildout timelines. Export controls and supply-chain friction keep
+          frontier GPUs scarce, limiting the pace of capacity expansion. Token costs stop falling — or rise
+          during peak demand periods as capacity runs tight. A small number of firms with superior
+          infrastructure position become gatekeepers, extracting rent from smaller providers who lack their own
+          compute. Access to AI capability stratifies along infrastructure ownership lines, with significant
+          implications for competitive dynamics across industries.
+        </p>
+
+        <h3 class="section-title section-title--preserve" style="font-size: 1.1rem; margin-top: 1.25rem">
+          Most likely case: a tiered and fragmented market
+        </h3>
+        <p>
+          The most probable outcome is a structurally tiered market. Standardized, frequently cached tasks —
+          summarization, basic code completion, short-form content generation — become genuinely cheap, served
+          by smaller quantized models at high utilization. Frontier tasks — extended reasoning, long-context
+          analysis, multi-step agentic workflows — remain expensive, commanding premium pricing. Most
+          consumer products will bifurcate into fast-and-cheap and slow-and-costly tiers, with advertising,
+          metered limits, or tiered subscriptions managing the economics of free access. Providers with the best
+          serving infrastructure and the most sophisticated caching strategies will maintain structural cost
+          advantages.
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          Strategic implications: where value accumulates
+        </h2>
+        <p>
+          If tokens become a commodity for standard tasks — as seems likely for the lower tiers of the market
+          — economic value will shift to the layers above and below raw compute. Understanding where it
+          accumulates is essential for strategy.
+        </p>
+        <ul class="misc-list">
+          <li>
+            <strong>Distribution and workflow ownership.</strong> Whoever controls the interface layer — the
+            enterprise software, the consumer application, the professional tool — captures value regardless
+            of which model underlies it.
+          </li>
+          <li>
+            <strong>Data rights and proprietary data access.</strong> High-trust, high-specificity data —
+            medical records, legal archives, financial history, proprietary enterprise knowledge — becomes
+            increasingly valuable as a model input that commodity providers cannot replicate.
+          </li>
+          <li>
+            <strong>Product design and problem framing.</strong> As token costs fall, wasted tokens become the
+            operational inefficiency to optimize. Products that frame problems precisely, reduce iteration
+            loops, and return accurate outputs on fewer tokens will have structurally lower unit economics than
+            competitors with poor prompt engineering.
+          </li>
+          <li>
+            <strong>Systems integration.</strong> Connecting models to existing enterprise tools, workflow
+            systems, compliance infrastructure, and business rules is a durable source of switching costs that
+            pure model capability cannot easily displace.
+          </li>
+          <li>
+            <strong>Trust, auditability, and regulatory compliance.</strong> In healthcare, legal, financial
+            services, and government contexts, the premium is increasingly on verifiable outputs with audit
+            trails — not on raw token cost. Providers who can demonstrate reliability and compliance will
+            command margins independent of commodity token economics.
+          </li>
+        </ul>
+        <p>
+          The strategic conclusion for builders and investors is direct: the model is not the product. It is
+          a component. Durable competitive positions are built on workflows that the model serves, proprietary
+          data that the model cannot access elsewhere, or distribution that the model relies on to reach users.
+          The token economy will commoditize inference; it will not commoditize judgment, trust, or
+          relationships.
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          A note on analytical honesty
+        </h2>
+        <p>
+          Executives and strategists engaging with token economics should be alert to several sources of
+          analytical noise in public discourse.
+        </p>
+        <p>
+          Provider token-volume disclosures may not be directly comparable. “Tokens per minute” figures can
+          reflect different product surfaces, different tokenization schemes, or different counting
+          conventions. They are informative as order-of-magnitude signals, not as audited sector aggregates.
+        </p>
+        <p>
+          Benchmark throughput figures — including the 3,900 tokens per second per H100 anchor used in this
+          analysis — are derived under specific test conditions. Real chat-serving systems routinely operate at
+          lower effective throughput to meet latency targets, manage demand spikes, and maintain memory
+          headroom. Translating benchmark numbers into fleet estimates requires explicit utilization
+          assumptions, and those assumptions dominate the result.
+        </p>
+        <p>
+          Energy-per-token estimates are extraordinarily sensitive to utilization, batching behavior, and
+          infrastructure overhead. The same GPU hardware can appear highly efficient at maximum batch
+          utilization and highly inefficient at low concurrency. Claims about AI energy consumption that do
+          not disclose their modeling assumptions should be treated with appropriate skepticism.
+        </p>
+        <p>
+          Efficiency gains from precision reduction — moving from FP16 toward FP8 and 4-bit formats — can be
+          large, but each step can run into accuracy floors, kernel complexity, and integration cost; it is
+          plausible that the easy wins are front-loaded and that the pace of per-token efficiency improvement
+          slows over time.
+        </p>
+        <p>
+          Demand trajectories are uncertain in both directions: agents and long context can raise tokens per
+          task faster than many baselines assume, while cost, usage limits, or regulation could temper growth.
+          Good analysis holds both tails in view instead of anchoring on a single narrative.
+        </p>
+        <p>
+          Finally, global energy consumption figures for AI workloads specifically — as distinct from data
+          center electricity use broadly — remain uncertain even to major forecasting agencies, which publish
+          scenario ranges rather than point estimates. The IEA’s projection of roughly doubling data center
+          electricity consumption by 2030 is a base case, not a deterministic forecast.
+        </p>
+        <p>
+          The honest framing for any projection in this space is: directionally robust, parametrically
+          uncertain. The direction of travel — more tokens, more GPUs, more electricity, falling per-token
+          cost, rising total cost — is well-supported. The specific magnitudes depend on assumptions that
+          should be stated explicitly and revisited as evidence accumulates.
+        </p>
+
+        <h2 class="section-title section-title--preserve" style="font-size: 1.35rem; margin-top: 2rem">
+          Sources
+        </h2>
+        <p style="font-size: 0.9375rem; color: var(--muted)">
+          Curated public links underlying the claims and tables in this article.
+        </p>
+        <h3 class="section-title section-title--preserve" style="font-size: 1.05rem; margin-top: 1.25rem">
+          Tokens and scaling
+        </h3>
+        <ul class="misc-list" style="font-size: 0.9375rem">
+          <li>
+            <a href="https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them" rel="noopener noreferrer"
+              >OpenAI — What are tokens and how to count them</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://discuss.huggingface.co/t/understanding-flops-per-token-estimates-from-openais-scaling-laws/23133"
+              rel="noopener noreferrer"
+              >Hugging Face — FLOPs-per-token and scaling laws (discussion)</a
+            >
+          </li>
+          <li>
+            <a href="https://arxiv.org/abs/2203.15556" rel="noopener noreferrer"
+              >Hoffmann et al. — Training Compute-Optimal Large Language Models (Chinchilla)</a
+            >
+          </li>
+        </ul>
+        <h3 class="section-title section-title--preserve" style="font-size: 1.05rem; margin-top: 1.25rem">
+          Inference and serving
+        </h3>
+        <ul class="misc-list" style="font-size: 0.9375rem">
+          <li>
+            <a
+              href="https://github.com/mlcommons/inference_results_v5.1/raw/refs/heads/main/summary_results.json"
+              rel="noopener noreferrer"
+              >MLPerf Inference v5.1 — summary_results.json</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://spectrum.ieee.org/mlperf-inference-51"
+              rel="noopener noreferrer"
+              ><em>IEEE Spectrum</em> — MLPerf Inference 5.1 overview</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://developer.nvidia.com/blog/nvidia-blackwell-delivers-massive-performance-leaps-in-mlperf-inference-v5-0/"
+              rel="noopener noreferrer"
+              >NVIDIA — Blackwell and MLPerf Inference</a
+            >
+          </li>
+          <li>
+            <a href="https://arxiv.org/pdf/2309.06180" rel="noopener noreferrer"
+              >Liu et al. — Efficient Memory Management for LLM Serving (PagedAttention / vLLM)</a
+            >
+          </li>
+          <li>
+            <a href="https://arxiv.org/abs/2511.17593" rel="noopener noreferrer"
+              >Kolluru — vLLM vs. Hugging Face TGI (2025)</a
+            >
+          </li>
+          <li>
+            <a href="https://bentoml.com/llm/inference-optimization/prefill-decode-disaggregation" rel="noopener noreferrer"
+              >BentoML — Prefill–decode disaggregation</a
+            >
+          </li>
+          <li>
+            <a href="https://www.anyscale.com/blog/continuous-batching-llm-inference" rel="noopener noreferrer"
+              >Anyscale — Continuous batching for LLM inference</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://www.databricks.com/blog/llm-inference-performance-engineering-best-practices"
+              rel="noopener noreferrer"
+              >Databricks — LLM inference performance engineering</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://developer.nvidia.com/blog/mastering-llm-techniques-inference-optimization/"
+              rel="noopener noreferrer"
+              >NVIDIA — LLM inference optimization (techniques)</a
+            >
+          </li>
+        </ul>
+        <h3 class="section-title section-title--preserve" style="font-size: 1.05rem; margin-top: 1.25rem">
+          Energy and data centers
+        </h3>
+        <ul class="misc-list" style="font-size: 0.9375rem">
+          <li>
+            <a href="https://www.iea.org/reports/energy-and-ai/energy-demand-from-ai" rel="noopener noreferrer"
+              >IEA — Energy demand from AI</a
+            >
+          </li>
+          <li>
+            <a href="https://epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use" rel="noopener noreferrer"
+              >Epoch AI — How much energy does ChatGPT use?</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://intelligence.uptimeinstitute.com/resource/uptime-institute-global-data-center-survey-2025"
+              rel="noopener noreferrer"
+              >Uptime Institute — Global data center survey (2025)</a
+            >
+          </li>
+        </ul>
+        <h3 class="section-title section-title--preserve" style="font-size: 1.05rem; margin-top: 1.25rem">
+          Planning cross-checks (global baseline, racks, Stargate)
+        </h3>
+        <ul class="misc-list" style="font-size: 0.9375rem">
+          <li>
+            <a href="https://fireworks.ai/blog/state-of-agent-environments" rel="noopener noreferrer"
+              >Fireworks AI — State of agent environments (~50T tokens/day discussion)</a
+            >
+          </li>
+          <li>
+            <a href="https://www.together.ai/blog/together-inference-engine-v1" rel="noopener noreferrer"
+              >Together AI — Inference engine / throughput (Llama-2-70B-Chat)</a
+            >
+          </li>
+          <li>
+            <a href="https://datacenters.google/discover-more/faq" rel="noopener noreferrer"
+              >Google — Data center FAQ (PUE)</a
+            >
+          </li>
+          <li>
+            <a href="https://openai.com/index/five-new-stargate-sites/" rel="noopener noreferrer"
+              >OpenAI — Stargate / Oracle expansion announcements</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://www.coreweave.com/blog/coreweave-nvidia-and-ibm-set-mlperf-record-with-largest-nvidia-gb200-blackwell-cluster-achieving-over-2x-faster-training"
+              rel="noopener noreferrer"
+              >CoreWeave — MLPerf / rack-scale cluster note</a
+            >
+          </li>
+          <li>
+            <a href="https://www.supermicro.com/en/solutions/rack-integration" rel="noopener noreferrer"
+              >Supermicro — Rack-scale / liquid-cooled integration</a
+            >
+          </li>
+        </ul>
+        <h3 class="section-title section-title--preserve" style="font-size: 1.05rem; margin-top: 1.25rem">
+          Pricing, policy, and capacity
+        </h3>
+        <ul class="misc-list" style="font-size: 0.9375rem">
+          <li>
+            <a href="https://ai.google.dev/gemini-api/docs/pricing" rel="noopener noreferrer"
+              >Google — Gemini API pricing</a
+            >
+          </li>
+          <li>
+            <a href="https://claude.com/pricing" rel="noopener noreferrer">Anthropic — Claude pricing</a>
+          </li>
+          <li>
+            <a href="https://openai.com/index/introducing-chatgpt-go/" rel="noopener noreferrer"
+              >OpenAI — Introducing ChatGPT Go (subscription tiers)</a
+            >
+          </li>
+          <li>
+            <a href="https://techcrunch.com/2025/07/21/chatgpt-users-send-2-5-billion-prompts-a-day/" rel="noopener noreferrer"
+              ><em>TechCrunch</em> — ChatGPT prompts per day (2025)</a
+            >
+          </li>
+          <li>
+            <a href="https://epoch.ai/blog/top-10-data-insights-and-gradient-updates-of-2025" rel="noopener noreferrer"
+              >Epoch AI — Data insights and price trends (2025)</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://www.srgresearch.com/articles/the-worlds-total-data-center-capacity-is-shifting-rapidly-to-hyperscale-operators"
+              rel="noopener noreferrer"
+              >Synergy Research Group — Hyperscale data center capacity</a
+            >
+          </li>
+          <li>
+            <a href="https://blogs.oracle.com/cloud-infrastructure/cost-efficient-llm-serving-with-quantization" rel="noopener noreferrer"
+              >Oracle Cloud — Quantization and LLM serving</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://www.reuters.com/commentary/breakingviews/how-big-techs-630-bln-ai-splurge-will-fall-short-2026-03-26/"
+              rel="noopener noreferrer"
+              >Reuters Breakingviews — AI capex and physical constraints</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://www.bloomberg.com/news/features/2026-04-01/us-ai-data-center-expansion-relies-on-chinese-electrical-equipment-imports"
+              rel="noopener noreferrer"
+              ><em>Bloomberg</em> — US AI data center expansion and supply chains</a
+            >
+          </li>
+        </ul>
+
+        <p style="margin-top: 1.75rem; font-size: 0.9375rem; color: var(--muted)">
+          This analysis is based on publicly disclosed figures, published benchmark results, and industry
+          research available through early 2026. All GPU estimates are unit conversions for planning
+          purposes, not fleet disclosures.
+        </p>
+
+        <p style="margin-top: 1.5rem"><a href="../index.html">← Back to home</a></p>
+      </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="../assets/js/layout.js" defer></script>
+  </body>
+</html>
