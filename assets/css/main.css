@@ -676,15 +676,50 @@ a:hover {
   font-style: italic;
 }
 
-/* Brainlabs-ish: cyan wash + pink tint, black wordmark */
+/* Brainlabs flask: white → pink brain → cyan liquid, one smooth vertical blend */
 .tl-logo--brainlabs {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: linear-gradient(145deg, #dff6ff 0%, #f7fcff 45%, #ffeef4 100%);
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #fff7fa 10%,
+    #ffeef4 20%,
+    #ffd6e8 30%,
+    #ffc2d9 38%,
+    #ff9eb8 46%,
+    #f0aac8 52%,
+    #e2c0dc 58%,
+    #cdd8f0 64%,
+    #b8e8fb 72%,
+    #92e2ff 82%,
+    #6bdcff 92%,
+    #4ec8ef 100%
+  );
   color: #111;
   font-size: 0.52rem;
   font-weight: 700;
   text-transform: lowercase;
   letter-spacing: -0.03em;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* IIM Bangalore–inspired: maroon crest palette, full-bleed tile (like VerSe / Author) */
+.tl-logo--iimb {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: linear-gradient(155deg, #c42a31 0%, #a51e23 42%, #8f1a20 78%, #7a161c 100%);
+  color: #fafafa;
+  font-size: 0.42rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.tl-logo__stack--iimb {
+  font-style: normal;
+  line-height: 1.12;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
 }
 
 /* VerSe-ish: bright red #E31B23 */
