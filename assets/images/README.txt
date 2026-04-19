@@ -1,7 +1,7 @@
 Images are grouped by site section (paths match index.html):
 
   home/                  — profile photo: 1-profile.jpg
-  latest-post/           — home “latest post” hero: 1.jpg (tokenomics article card on index.html)
+  latest-post/           — home “latest post” hero: 1.png (tokenomics article card on index.html)
   my-book/               — banner: 1-banner.jpeg
   featured-videos/       — optional; the “featured videos” section uses YouTube thumbs in HTML unless you switch to local files
   my-courses/            — “my course” banner photo: 1-presenter.jpg (add 2-presenter.jpg, … if you add more courses)
